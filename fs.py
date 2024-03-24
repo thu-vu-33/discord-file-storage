@@ -31,7 +31,7 @@ def getSizeFormat(size):
 
 
 def loadFileIndex():
-    response = requests.get(f"{BASE_URL}{CHANNEL_ID}/messages", headers=headers)
+    response = requests.get(f"{BASE_URL}{CHANNEL_ID}/messages?limit=1", headers=headers)
     if response.status_code != 200:
         print(
             "An error occurred while loading index: ",
@@ -250,7 +250,7 @@ def uploadFile(args):
             [message["id"], message["attachments"][0]["id"]]
         )  # message_id, attachment_id pair
 
-    print("File uploaded")
+    print("File uploaded ", message)
 
     file_index[encode(filename)] = {
         "filename": encode(filename),
@@ -260,6 +260,23 @@ def uploadFile(args):
     updateFileIndex(message_id, file_index)
     f.close()
 
+def getMessageUrl(message_id):
+    response = requests.get(f"{BASE_URL}{CHANNEL_ID}/messages/{message_id}", headers=headers)
+    if response.status_code != 200:
+        print(
+            "An error occurred while get message: ",
+            response.status_code,
+            response.text,
+        )
+        sys.exit()
+    if len(response.json()) < 1:
+        print("No index file found")
+        return
+
+    message = response.json()
+    file = message["attachments"][0]
+    url = file["url"]
+    return url
 
 def downloadFile(args):
     indices = []
@@ -286,14 +303,16 @@ def downloadFile(args):
 
         for i, values in enumerate(file["urls"]):
             message_id, attachment_id = values
-            url = (
-                CDN_BASE_URL
-                + attachment_id
-                + "/"
-                + re.sub(file_regex, "", og_name).replace(" ", "_").replace("__", "_")
-                + "."
-                + str(i)
-            )
+            # url = (
+            #     CDN_BASE_URL
+            #     + attachment_id
+            #     + "/"
+            #     + re.sub(file_regex, "", og_name).replace(" ", "_").replace("__", "_")
+            #     + "."
+            #     + str(i)
+            # )
+            url = getMessageUrl(message_id)
+            print("Download ", url)
             response = requests.get(url)  # file attachments are public
             if response.status_code != 200:
                 print(
